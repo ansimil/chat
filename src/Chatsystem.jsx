@@ -1,7 +1,7 @@
 import React, { createElement, useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Mention from '@tiptap/extension-mention';
+import Mention from '@tiptap/extension-mention'
 import Link from '@tiptap/extension-link';
 import TextStyle from '@tiptap/extension-text-style';
 import Image from '@tiptap/extension-image';
@@ -15,7 +15,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import Underline from '@tiptap/extension-underline';
 
-export const Chatsystem = ({ InputMessage, MentionJson, IdentityList, MentionName }) => {
+export const Chatsystem = ({ InputMessage, IdentityList, MentionName }) => {
   const [ready, setReady] = useState(false);
   const [mentions, setMentions] = useState([]);
 
@@ -43,6 +43,12 @@ const Chat = ({ InputMessage, Mentions }) => {
   const [editor, setEditor] = useState(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
 
+  const containsTable = (htmlString) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
+    return doc.querySelectorAll('table').length > 0;
+  }
+
   const editorInstance = useEditor({
     extensions: [
       StarterKit,
@@ -60,16 +66,12 @@ const Chat = ({ InputMessage, Mentions }) => {
         inline: true,
       }),
       Mention.configure({
-        renderHTML({ node }) {
-          return [
-            'span',
-            {
-              class: 'mention',
-              id: node.attrs.id,
-              label: node.attrs.label,
-            },
-            `@${node.attrs.label}`,
-          ];
+        HTMLAttributes: {
+          class: 'mention',
+          contentEditable: 'false',
+        },
+        renderText({ options, node }) {
+          return `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`
         },
         suggestion: {
           items: ({ query }) => {
@@ -125,31 +127,23 @@ const Chat = ({ InputMessage, Mentions }) => {
       TableHeader,
       Underline,
     ],
-    content: InputMessage || '<p></p>',
-
+    content: InputMessage.value,
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
       if (InputMessage && typeof InputMessage.setValue === 'function') {
         InputMessage.setValue(content);
       }
-
-      // Check if a table exists in the content
       const hasTable = editor.getJSON().content?.some(node => node.type === 'table');
-      setShowDeleteButton(hasTable); // Show delete button if a table is present
+      setShowDeleteButton(hasTable);
     },
   });
 
   useEffect(() => {
+    setShowDeleteButton(containsTable(InputMessage.value));
     if (editorInstance) {
       setEditor(editorInstance);
-      if (InputMessage && typeof InputMessage.getValue === 'function') {
-        const currentContent = InputMessage.getValue();
-        if (currentContent) {
-          editorInstance.commands.setContent(currentContent);
-        }
-      }
     }
-  }, [InputMessage, editorInstance]);
+  }, [editorInstance]);
 
   const handleDeleteTable = () => {
     if (editor) {
@@ -160,11 +154,11 @@ const Chat = ({ InputMessage, Mentions }) => {
   return (
     <div className="container chat-container">
       <EditorContent editor={editor} className="editorContent" />
-      {/* {showDeleteButton && (
+      {showDeleteButton && (
         <button onClick={handleDeleteTable} className="delete-table-button">
           Delete Table
         </button>
-      )} */}
+      )}
     </div>
   );
 };
